@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  echobridge-alexa-skill
+
+  Sample SAM Template for echobridge-alexa-skill
+
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  EchoBridgeAlexaSkillFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          LWA_CLIENT_ID: YOUR_LWA_CLIENT_ID
+          LWA_CLIENT_SECRET: YOUR_LWA_CLIENT_SECRET
+          ALEXA_EVENTS_ENDPOINT: https://api.amazonalexa.com/v1/events
+          API_KEY: !Ref ApiKey
+          COGNITO_USER_POOL_ID: YOUR_COGNITO_USER_POOL_ID
+      Events:
+        AlexaSkill:
+          Type: AlexaSkill
+        Api:
+          Type: Api
+          Properties:
+            Path: /v1/message
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: EchoBridgeApiKey
+      Enabled: true
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: EchoBridgeUsagePlan
+      ApiStages:
+        - ApiId: !Ref ServerlessRestApi
+          Stage: Prod
+      Throttle:
+        BurstLimit: 200
+        RateLimit: 100
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+Outputs:
+  EchoBridgeAlexaSkillApi:
+    Description: "API Gateway endpoint URL for Prod stage for Echo Bridge Alexa Skill function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/v1/message/"
+  EchoBridgeAlexaSkillFunction:
+    Description: "Echo Bridge Alexa Skill Lambda Function ARN"
+    Value: !GetAtt EchoBridgeAlexaSkillFunction.Arn
+  EchoBridgeAlexaSkillFunctionIamRole:
+    Description: "Implicit IAM Role created for Echo Bridge Alexa Skill function"
+    Value: !GetAtt EchoBridgeAlexaSkillFunctionRole.Arn
+  ApiKey:
+    Description: "API Key for the EchoBridge API"
+    Value: !Ref ApiKey

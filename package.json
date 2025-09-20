@@ -1,0 +1,16 @@
+{
+  "name": "echobridge-alexa-skill",
+  "version": "1.0.0",
+  "description": "Alexa Skill Backend for EchoBridge",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ask-sdk-core": "^2.12.1",
+    "ask-sdk-model": "^1.39.0",
+    "axios": "^1.4.0"
+  }
+}
