@@ -4,6 +4,7 @@ import boto3
 import requests
 import uuid
 import subprocess
+import urllib.parse
 
 # Environment variables
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
@@ -98,10 +99,10 @@ def handle_new_user(chat_id):
     """
     auth_url = (
         f"https://{COGNITO_DOMAIN}/oauth2/authorize?"
-        f"client_id={COGNITO_CLIENT_ID}&"
+        f"client_id={urllib.parse.quote(COGNITO_CLIENT_ID)}&"
         f"response_type=code&"
-        f"scope=openid+profile+email&"
-        f"redirect_uri={ALEXA_REDIRECT_URI}&"
+        f"scope={urllib.parse.quote('openid profile email')}&"
+        f"redirect_uri={urllib.parse.quote(ALEXA_REDIRECT_URI)}&"
         f"state={chat_id}"  # Pass chat_id as state
     )
 
@@ -152,13 +153,16 @@ def handle_text_message(message, user_profile):
     try:
         response = requests.post(api_url, headers=headers, json=payload, timeout=10)
         if response.status_code == 202:
-            send_telegram_message(chat_id, "Your message has been sent to your Alexa devices.")
+            send_telegram_message(chat_id, "✅ Your message has been sent to your Alexa devices.")
         else:
             print(f"Error calling skill backend: {response.status_code} {response.text}")
-            send_telegram_message(chat_id, "Sorry, there was a problem sending your message.")
+            send_telegram_message(chat_id, "❌ Sorry, there was a problem sending your message. Please try again later.")
+    except requests.exceptions.Timeout:
+        print("Timeout calling skill backend")
+        send_telegram_message(chat_id, "⏱️ Request timed out. Please try again later.")
     except Exception as e:
         print(f"Exception calling skill backend: {e}")
-        send_telegram_message(chat_id, "Sorry, there was a problem sending your message.")
+        send_telegram_message(chat_id, "❌ Sorry, there was a problem sending your message. Please try again later.")
 
 def handle_voice_message(message, user_profile):
     """
@@ -168,7 +172,7 @@ def handle_voice_message(message, user_profile):
     file_id = message['voice']['file_id']
     access_token = user_profile.get('access_token')
 
-    send_telegram_message(chat_id, "Processing your voice message...")
+    send_telegram_message(chat_id, "🎤 Processing your voice message...")
 
     try:
         # 1. Get file path from Telegram
@@ -202,13 +206,13 @@ def handle_voice_message(message, user_profile):
         response = requests.post(api_url, headers=headers, json=payload, timeout=10)
 
         if response.status_code == 202:
-            send_telegram_message(chat_id, "Your voice message has been sent to your Alexa devices.")
+            send_telegram_message(chat_id, "✅ Your voice message has been sent to your Alexa devices.")
         else:
             raise Exception(f"Skill backend returned error: {response.status_code}")
 
     except Exception as e:
         print(f"Error processing voice message: {e}")
-        send_telegram_message(chat_id, "Sorry, there was a problem processing your voice message.")
+        send_telegram_message(chat_id, "❌ Sorry, there was a problem processing your voice message. Please try again later.")
     finally:
         # Clean up temporary files
         if 'ogg_file_path' in locals() and os.path.exists(ogg_file_path):
@@ -237,20 +241,29 @@ def download_file(file_path, dest_path):
 
 def transcode_to_mp3(input_path, output_path):
     """Transcodes an audio file to MP3 using a bundled FFmpeg."""
-    # Assumes ffmpeg is in the PATH or in the current directory
+    # Check if ffmpeg exists and is executable
+    ffmpeg_path = './ffmpeg'
+    if not os.path.exists(ffmpeg_path):
+        # Fallback to system ffmpeg if bundled version doesn't exist
+        ffmpeg_path = 'ffmpeg'
+
     command = [
-        './ffmpeg',
+        ffmpeg_path,
         '-i', input_path,
         '-acodec', 'libmp3lame',
         '-ab', '48k',
         '-ar', '24000',
+        '-y',  # Overwrite output file if exists
         output_path
     ]
     try:
-        subprocess.run(command, check=True, capture_output=True)
+        result = subprocess.run(command, check=True, capture_output=True, text=True)
+        print(f"FFmpeg stdout: {result.stdout}")
     except subprocess.CalledProcessError as e:
-        print(f"FFmpeg error: {e.stderr.decode()}")
+        print(f"FFmpeg error: {e.stderr}")
         raise
+    except FileNotFoundError:
+        raise Exception("FFmpeg binary not found. Please ensure ffmpeg is available in the deployment package.")
 
 def upload_to_s3(file_path, object_key):
     """Uploads a file to the S3 bucket."""
