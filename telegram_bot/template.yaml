@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  EchoBridge Telegram Bot Service
+
+  This template deploys the Lambda function, API Gateway, DynamoDB table,
+  and S3 bucket for the Telegram bot service.
+
+Parameters:
+  TelegramBotToken:
+    Type: String
+    Description: "The API token for the Telegram bot from BotFather."
+  CognitoUserPoolId:
+    Type: String
+    Description: "The AWS Cognito User Pool ID for user management."
+  CognitoClientId:
+    Type: String
+    Description: "The Cognito App Client ID."
+  CognitoDomain:
+    Type: String
+    Description: "The full domain of the Cognito Hosted UI (e.g., echobridge-auth.auth.us-east-1.amazoncognito.com)."
+  AlexaSkillBackendUrl:
+    Type: String
+    Description: "The API Gateway URL for the Alexa Skill Backend."
+  ApiKey:
+    Type: String
+    Description: "The API key for authenticating with the Alexa Skill Backend."
+  AlexaRedirectUri:
+    Type: String
+    Description: "The primary Alexa Redirect URL for constructing the Cognito linking URL."
+
+Resources:
+  TelegramBotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Zip
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          COGNITO_DOMAIN: !Ref CognitoDomain
+          S3_BUCKET_NAME: !Ref VoiceMediaBucket
+          ALEXA_SKILL_BACKEND_URL: !Ref AlexaSkillBackendUrl
+          API_KEY: !Ref ApiKey
+          ALEXA_REDIRECT_URI: !Ref AlexaRedirectUri
+          USER_TABLE_NAME: !Ref UserTable
+      Events:
+        TelegramWebhook:
+          Type: Api
+          Properties:
+            Path: /
+            Method: post
+        RegisterUser:
+          Type: Api
+          Properties:
+            Path: /register
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceMediaBucket
+
+  UserTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "chat_id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "chat_id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: EchoBridgeUsers
+
+  VoiceMediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "echobridge-voice-media-${AWS::AccountId}-${AWS::Region}"
+      AccessControl: Private
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireMediaAfter24Hours
+            Status: Enabled
+            ExpirationInDays: 1
+
+Outputs:
+  TelegramBotApiUrl:
+    Description: "API Gateway endpoint URL for Telegram Bot"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  S3BucketName:
+    Description: "Name of the S3 bucket for voice media"
+    Value: !Ref VoiceMediaBucket
+  DynamoDbTableName:
+    Description: "Name of the DynamoDB table for user data"
+    Value: !Ref UserTable

@@ -1,0 +1,6 @@
+This is a placeholder for the FFmpeg binary.
+In a real deployment, this file would be a static build of FFmpeg
+compatible with the AWS Lambda execution environment (Amazon Linux 2).
+You can download a suitable build from sources like:
+https://johnvansickle.com/ffmpeg/
+Make sure to make the binary executable (chmod +x ffmpeg) before deploying.
