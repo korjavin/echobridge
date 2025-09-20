@@ -1,13 +1,25 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  echobridge-alexa-skill
+  EchoBridge Alexa Skill Backend
 
-  Sample SAM Template for echobridge-alexa-skill
+  SAM Template for EchoBridge Alexa Skill Backend Service
+
+Parameters:
+  LwaClientId:
+    Type: String
+    Description: "Login with Amazon Client ID for proactive events"
+  LwaClientSecret:
+    Type: String
+    NoEcho: true
+    Description: "Login with Amazon Client Secret"
+  CognitoUserPoolId:
+    Type: String
+    Description: "AWS Cognito User Pool ID for token validation"
 
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
 
 Resources:
   EchoBridgeAlexaSkillFunction:
@@ -20,11 +32,11 @@ Resources:
         - x86_64
       Environment:
         Variables:
-          LWA_CLIENT_ID: YOUR_LWA_CLIENT_ID
-          LWA_CLIENT_SECRET: YOUR_LWA_CLIENT_SECRET
-          ALEXA_EVENTS_ENDPOINT: https://api.amazonalexa.com/v1/events
+          LWA_CLIENT_ID: !Ref LwaClientId
+          LWA_CLIENT_SECRET: !Ref LwaClientSecret
+          ALEXA_EVENTS_ENDPOINT: https://api.amazonalexa.com/v1/proactiveEvents
           API_KEY: !Ref ApiKey
-          COGNITO_USER_POOL_ID: YOUR_COGNITO_USER_POOL_ID
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
       Events:
         AlexaSkill:
           Type: AlexaSkill
