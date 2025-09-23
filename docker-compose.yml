@@ -1,0 +1,20 @@
+# docker-compose.yml
+version: "3.8"
+
+services:
+  echobridge-alexa-skill:
+    # The image tag will be replaced by the GitHub Actions workflow
+    image: ghcr.io/korjavin/echobridge-alexa-skill:latest
+    container_name: echobridge-alexa-skill
+    networks:
+      - my-network # Replace with your network name
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.echobridge-alexa-skill.rule=Host(`app.your-domain.com`)" # Replace with your domain
+      - "traefik.http.routers.echobridge-alexa-skill.entrypoints=websecure"
+      - "traefik.http.routers.echobridge-alexa-skill.tls.certresolver=myresolver"
+    restart: unless-stopped
+
+networks:
+  my-network: # Replace with your network name
+    external: true
