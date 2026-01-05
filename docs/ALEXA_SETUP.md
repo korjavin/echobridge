@@ -14,7 +14,7 @@ Since we are running a self-hosted service, you need to manually configure the A
 
 ## 2. Interaction Model
 1.  In the left menu, go to **Interaction Model > Invocation**.
-    *   **Skill Invocation Name**: `echo bridge` (this is what you say to open it).
+    *   **Skill Invocation Name**: `telegram bridge` (this is what you say to open it).
 2.  Go to **Interaction Model > Intents > JSON Editor**.
 3.  Paste the following JSON schema:
     ```json
@@ -82,5 +82,5 @@ Since we are running a self-hosted service, you need to manually configure the A
 ## 5. Testing
 1.  Go to the **Test** tab.
 2.  Enable testing for "Development".
-3.  Type or say: `open echo bridge`.
+3.  Type or say: `open telegram bridge`.
     *   You should hear: "Welcome... Your pairing code is..."

@@ -40,7 +40,7 @@ It replaces the complex AWS Lambda/Cognito setup with a lightweight Node.js serv
     *   Enable AudioPlayer interface.
 
 4.  **Pair**:
-    *   Say "Alexa, open EchoBridge" -> Get code.
+    *   Say "Alexa, open Telegram Bridge" -> Get code.
     *   Send `/pair <code>` to your Telegram Bot.
 
 See [walkthrough.md](walkthrough.md) for detailed deployment instructions.
