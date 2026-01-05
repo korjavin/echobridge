@@ -1,6 +1,7 @@
 const Alexa = require('ask-sdk-core');
 const db = require('./db');
 const pairing = require('./pairing');
+const bot = require('./telegram-bot');
 
 // Helper to get Alexa User ID
 const getUserId = (handlerInput) => {
@@ -108,6 +109,44 @@ const PairDeviceIntentHandler = {
     }
 };
 
+const SendMessageIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'SendMessageIntent';
+    },
+    async handle(handlerInput) {
+        const userId = getUserId(handlerInput);
+        const telegramChatId = await db.getTelegramChatId(userId);
+
+        if (!telegramChatId) {
+            return handlerInput.responseBuilder
+                .speak('You need to pair your device first.')
+                .getResponse();
+        }
+
+        const message = Alexa.getSlotValue(handlerInput.requestEnvelope, 'message');
+
+        if (!message) {
+            return handlerInput.responseBuilder
+                .speak('I didn\'t catch the message. What should I send?')
+                .reprompt('What should I send to Telegram?')
+                .getResponse();
+        }
+
+        try {
+            await bot.telegram.sendMessage(telegramChatId, `🗣️ Alexa says: ${message}`);
+            return handlerInput.responseBuilder
+                .speak(`Sent: ${message}`)
+                .getResponse();
+        } catch (error) {
+            console.error('Failed to send telegram message:', error);
+            return handlerInput.responseBuilder
+                .speak('Sorry, I failed to send the message to Telegram.')
+                .getResponse();
+        }
+    }
+};
+
 const HelpIntentHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
@@ -165,6 +204,7 @@ exports.handler = Alexa.SkillBuilders.custom()
         LaunchRequestHandler,
         ReadMyMessagesIntentHandler,
         PairDeviceIntentHandler,
+        SendMessageIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
         SessionEndedRequestHandler

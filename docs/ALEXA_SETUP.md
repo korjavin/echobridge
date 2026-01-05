@@ -57,6 +57,21 @@ Since we are running a self-hosted service, you need to manually configure the A
                 "connect new device",
                 "give me a code"
               ]
+            },
+            {
+              "name": "SendMessageIntent",
+              "slots": [
+                {
+                  "name": "message",
+                  "type": "AMAZON.SearchQuery"
+                }
+              ],
+              "samples": [
+                "send {message}",
+                "tell telegram {message}",
+                "say {message}",
+                "ask telegram {message}"
+              ]
             }
           ],
           "types": []
