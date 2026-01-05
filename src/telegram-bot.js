@@ -31,6 +31,28 @@ bot.start((ctx) => {
     );
 });
 
+bot.command('pair', async (ctx) => {
+    // Telegraf doesn't provide ctx.payload by default.
+    // Format: /pair 123456
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 2) {
+        return ctx.reply('Please provide the 6-digit code. Example: /pair 123456');
+    }
+    const code = parts[1].trim();
+
+    try {
+        const result = await pairing.confirmPairing(ctx.message.chat.id.toString(), code);
+        if (result.success) {
+            ctx.reply(result.message);
+        } else {
+            ctx.reply('❌ ' + result.message);
+        }
+    } catch (error) {
+        console.error('Pairing error:', error);
+        ctx.reply('❌ An internal error occurred during pairing.');
+    }
+});
+
 bot.command('status', async (ctx) => {
     try {
         const chatId = ctx.message.chat.id.toString();
