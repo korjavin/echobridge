@@ -31,25 +31,27 @@ bot.start((ctx) => {
     );
 });
 
-bot.command('pair', async (ctx) => {
-    // Telegraf doesn't provide ctx.payload by default.
-    // Format: /pair 123456
-    const parts = ctx.message.text.split(' ');
-    if (parts.length < 2) {
-        return ctx.reply('Please provide the 6-digit code. Example: /pair 123456');
-    }
-    const code = parts[1].trim();
-
+bot.command('status', async (ctx) => {
     try {
-        const result = await pairing.confirmPairing(ctx.message.chat.id.toString(), code);
-        if (result.success) {
-            ctx.reply(result.message);
-        } else {
-            ctx.reply('❌ ' + result.message);
+        const chatId = ctx.message.chat.id.toString();
+        const alexaUserId = await db.getAlexaUserId(chatId);
+
+        if (!alexaUserId) {
+            return ctx.reply('Status: 🔴 Not Paired\n\nPlease say "Alexa, open Echo Bridge" to get a pairing code.');
         }
+
+        const messages = await db.getUnreadMessages(alexaUserId);
+        const maskedUserId = alexaUserId.substring(0, 10) + '...';
+
+        ctx.reply(
+            `Status: 🟢 Paired\n` +
+            `Alexa User ID: ${maskedUserId}\n` +
+            `Unread Messages: ${messages.length}\n` +
+            `Database: ✅ Persistent`
+        );
     } catch (error) {
-        console.error('Pairing error:', error);
-        ctx.reply('❌ An internal error occurred during pairing.');
+        console.error('Status check error:', error);
+        ctx.reply('❌ Error checking status.');
     }
 });
 
