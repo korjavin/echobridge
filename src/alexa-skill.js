@@ -24,7 +24,7 @@ const LaunchRequestHandler = {
         if (telegramChatId) {
             const messages = await db.getUnreadMessages(userId);
             const count = messages.length;
-            const speakOutput = `Welcome back to EchoBridge. You have ${count} new message${count !== 1 ? 's' : ''}. Say "read messages" to hear them.`;
+            const speakOutput = `Welcome back to Telegram Bridge. You have ${count} new message${count !== 1 ? 's' : ''}. Say "read messages" to hear them.`;
 
             return handlerInput.responseBuilder
                 .speak(speakOutput)
@@ -33,7 +33,7 @@ const LaunchRequestHandler = {
         } else {
             // Not paired, generate code
             const code = await pairing.startPairing(userId);
-            const speakOutput = `Welcome to EchoBridge. I am not linked to your Telegram account yet. Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the EchoBridge Telegram bot.`;
+            const speakOutput = `Welcome to Telegram Bridge. I am not linked to your Telegram account yet. Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the Telegram Bridge Telegram bot.`;
 
             return handlerInput.responseBuilder
                 .speak(speakOutput)
@@ -101,7 +101,7 @@ const PairDeviceIntentHandler = {
     async handle(handlerInput) {
         const userId = getUserId(handlerInput);
         const code = await pairing.startPairing(userId);
-        const speakOutput = `Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the EchoBridge Telegram bot.`;
+        const speakOutput = `Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the Telegram Bridge Telegram bot.`;
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .getResponse();
