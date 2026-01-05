@@ -36,9 +36,6 @@ services:
       - LOG_LEVEL=info
 
     restart: unless-stopped
-    
-    # Simple build context for local dev convenience, though CI uses image
-    build: .
 
 networks:
   traefik_network:
