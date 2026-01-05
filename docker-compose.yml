@@ -6,8 +6,7 @@ services:
     image: ghcr.io/korjavin/echobridge:latest
     container_name: echobridge
     
-    # We use 'traefik_network' as per standard, or creates a default bridge if no traefik
-    # Assuming user has a 'traefik_network' external network based on their description
+    # Use dynamic network name from env var NETWORK, default to traefik_network
     networks:
       - traefik_network
 
@@ -43,5 +42,5 @@ services:
 
 networks:
   traefik_network:
-    name: traefik_network
+    name: ${NETWORK:-traefik_network}
     external: true
