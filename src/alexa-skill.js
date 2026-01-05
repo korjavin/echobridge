@@ -4,7 +4,13 @@ const pairing = require('./pairing');
 
 // Helper to get Alexa User ID
 const getUserId = (handlerInput) => {
-    return handlerInput.requestEnvelope.context.System.user.userId;
+    try {
+        return handlerInput.requestEnvelope.context.System.user.userId;
+    } catch (e) {
+        console.error('Failed to get userId from context:', e);
+        console.log('Full Request Envelope:', JSON.stringify(handlerInput.requestEnvelope, null, 2));
+        return null; // Handle this gracefully in callers
+    }
 };
 
 const LaunchRequestHandler = {

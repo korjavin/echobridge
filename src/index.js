@@ -28,6 +28,7 @@ app.use(bot.webhookCallback('/telegram'));
 // Alexa Skill Endpoint
 app.post('/alexa', bodyParser.json(), async (req, res) => {
     try {
+        console.log('Incoming Alexa Request:', JSON.stringify(req.body, null, 2));
         const response = await handler.invoke(req.body);
         res.json(response);
     } catch (err) {
