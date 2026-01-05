@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
-const path = require('path');
+
 // const { skillAdapter } = require('ask-sdk-express-adapter'); // Not used, using manual invocation
 const { handler } = require('./alexa-skill');
 const bot = require('./telegram-bot');
