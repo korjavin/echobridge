@@ -1,20 +1,47 @@
-# docker-compose.yml
 version: "3.8"
 
 services:
-  echobridge-alexa-skill:
-    # The image tag will be replaced by the GitHub Actions workflow
-    image: ghcr.io/korjavin/echobridge-alexa-skill:latest
-    container_name: echobridge-alexa-skill
+  echobridge:
+    # Image will be automatically updated by GitHub Actions
+    image: ghcr.io/korjavin/echobridge:latest
+    container_name: echobridge
+    
+    # We use 'traefik_network' as per standard, or creates a default bridge if no traefik
+    # Assuming user has a 'traefik_network' external network based on their description
     networks:
-      - my-network # Replace with your network name
+      - traefik_network
+
     labels:
+      # Enable Traefik for this service
       - "traefik.enable=true"
-      - "traefik.http.routers.echobridge-alexa-skill.rule=Host(`app.your-domain.com`)" # Replace with your domain
-      - "traefik.http.routers.echobridge-alexa-skill.entrypoints=websecure"
-      - "traefik.http.routers.echobridge-alexa-skill.tls.certresolver=myresolver"
+
+      # HTTP router configuration
+      # Uses HOSTNAME env var. If not set, user must set it in .env
+      - "traefik.http.routers.echobridge.rule=Host(`${HOSTNAME}`)"
+      - "traefik.http.routers.echobridge.entrypoints=websecure"
+      - "traefik.http.routers.echobridge.tls.certresolver=myresolver"
+
+      # Service configuration (specify backend port)
+      - "traefik.http.services.echobridge.loadbalancer.server.port=3000"
+
+    # Persistent data
+    volumes:
+      - ./data:/app/data
+      - ./media:/app/media
+
+    environment:
+      - NODE_ENV=production
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      # EXTERNAL_URL is still useful for the bot logic, though Traefik handles the ingress
+      - EXTERNAL_URL=https://${HOSTNAME} 
+      - LOG_LEVEL=info
+
     restart: unless-stopped
+    
+    # Simple build context for local dev convenience, though CI uses image
+    build: .
 
 networks:
-  my-network: # Replace with your network name
+  traefik_network:
+    name: traefik_network
     external: true

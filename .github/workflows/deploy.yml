@@ -1,10 +1,10 @@
-# .github/workflows/deploy.yml
 name: Deploy Application
 
 on:
   push:
     branches:
       - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -29,8 +29,11 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
           build-args: |
             COMMIT_SHA=${{ github.sha }}
 
@@ -39,9 +42,14 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git checkout -B deploy
-          sed -i "s|image: ghcr.io/korjavin/echobridge-alexa-skill:.*|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|g" docker-compose.yml
+
+          # Update image tags in docker-compose.yml
+          # Pattern: Replace any tag after the image name with the commit SHA
+          sed -i "s|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:.*|image: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}|g" docker-compose.yml
+
           git add docker-compose.yml
-          git commit -m "ci: Update image tag to ${{ github.sha }}"
+
+          git commit -m "ci: Update image tag to ${{ github.sha }}" || echo "No changes to commit"
           git push origin deploy --force
 
       - name: Trigger Portainer Redeploy Webhook

@@ -1,16 +1,24 @@
 {
-  "name": "echobridge-alexa-skill",
+  "name": "echobridge-monolith",
   "version": "1.0.0",
-  "description": "Alexa Skill Backend for EchoBridge",
+  "description": "Self-hosted EchoBridge service",
   "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "ask-sdk-core": "^2.12.1",
-    "ask-sdk-model": "^1.39.0",
-    "axios": "^1.4.0"
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.41.0",
+    "axios": "^1.6.0",
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "sqlite3": "^5.1.6",
+    "telegraf": "^4.15.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }

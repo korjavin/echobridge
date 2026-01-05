@@ -1,23 +1,21 @@
-# Dockerfile for Node.js application
 FROM node:18-alpine
 
-# Add build argument for commit SHA
-ARG COMMIT_SHA=unknown
+# Install FFmpeg for audio transcoding
+RUN apk add --no-cache ffmpeg
 
-# Create app directory
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# Copy package files first for better caching
 COPY package*.json ./
+
+# Install dependencies
 RUN npm install
 
-# Bundle app source
-COPY src .
+# Copy source code
+COPY . .
 
-# Create a file with the commit sha
-RUN echo "${COMMIT_SHA}" > /usr/src/app/commit_sha.txt
+# Expose port
+EXPOSE 3000
 
-# The app is a lambda function, so we don't need to start a server.
-# We will just keep the container running.
-CMD [ "tail", "-f", "/dev/null" ]
+# Start the application
+CMD ["node", "src/index.js"]
