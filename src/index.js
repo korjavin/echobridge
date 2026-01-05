@@ -1,11 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { skillAdapter } = require('ask-sdk-express-adapter'); // Needs to be installed? Actually ask-sdk-core doesn't include express adapter. 
-// Wait, I put ask-sdk-core and model in package.json, but not ask-sdk-express-adapter. 
-// I should probably manually handle the request if I don't want to add another dependency, or add it.
-// Adding dependency is cleaner. But let's check if I can just use a simple wrapper.
-// Wrapper:
+const path = require('path');
+// const { skillAdapter } = require('ask-sdk-express-adapter'); // Not used, using manual invocation
 const { handler } = require('./alexa-skill');
 const bot = require('./telegram-bot');
 const db = require('./db');

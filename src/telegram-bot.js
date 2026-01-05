@@ -32,10 +32,13 @@ bot.start((ctx) => {
 });
 
 bot.command('pair', async (ctx) => {
-    const code = ctx.payload.trim();
-    if (!code) {
+    // Telegraf doesn't provide ctx.payload by default.
+    // Format: /pair 123456
+    const parts = ctx.message.text.split(' ');
+    if (parts.length < 2) {
         return ctx.reply('Please provide the 6-digit code. Example: /pair 123456');
     }
+    const code = parts[1].trim();
 
     try {
         const result = await pairing.confirmPairing(ctx.message.chat.id.toString(), code);
