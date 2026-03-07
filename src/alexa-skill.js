@@ -162,14 +162,28 @@ const WhoIsOnDutyIntentHandler = {
         }
 
         try {
-            const response = await axios.get(dutyUrl);
-            const name = response.data; // Assuming it returns just the name as text.
-            const speakOutput = `today is on duty ${name}`;
+            const response = await axios.get(dutyUrl, { timeout: 3000 });
+            let name = response.data;
+            if (typeof name === 'object') {
+                name = name.name || name.duty || name.person || name.user;
+            }
+            if (!name || typeof name !== 'string' || name.trim() === '') {
+                console.error('Invalid duty information received:', response.data);
+                return handlerInput.responseBuilder
+                    .speak('Sorry, I received invalid duty information.')
+                    .getResponse();
+            }
+            const speakOutput = `today is on duty ${name.trim()}`;
             return handlerInput.responseBuilder
                 .speak(speakOutput)
                 .getResponse();
         } catch (error) {
-            console.error('Failed to fetch duty information:', error);
+            console.error('Failed to fetch duty information:', error.message);
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                return handlerInput.responseBuilder
+                    .speak('Sorry, the duty server took too long to respond.')
+                    .getResponse();
+            }
             return handlerInput.responseBuilder
                 .speak('Sorry, I failed to get the duty information.')
                 .getResponse();
