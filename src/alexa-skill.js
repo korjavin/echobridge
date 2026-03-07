@@ -1,4 +1,6 @@
 const Alexa = require('ask-sdk-core');
+const axios = require('axios');
+const crypto = require('crypto');
 const db = require('./db');
 const pairing = require('./pairing');
 const bot = require('./telegram-bot');
@@ -147,6 +149,60 @@ const SendMessageIntentHandler = {
     }
 };
 
+const WhoIsOnDutyIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'WhoIsOnDutyIntent';
+    },
+    async handle(handlerInput) {
+        const dutyUrl = process.env.DUTY_URL;
+        if (!dutyUrl) {
+            return handlerInput.responseBuilder
+                .speak('Duty URL is not configured.')
+                .getResponse();
+        }
+
+        try {
+            const headers = {};
+            const secret = process.env.DUTY_SECRET;
+            if (secret) {
+                const timestamp = Date.now().toString();
+                const signature = crypto.createHmac('sha256', secret)
+                    .update(timestamp)
+                    .digest('hex');
+                headers['X-Timestamp'] = timestamp;
+                headers['X-Signature'] = signature;
+            }
+
+            const response = await axios.get(dutyUrl, { timeout: 3000, headers });
+            let name = response.data;
+            if (typeof name === 'object') {
+                name = name.name || name.duty || name.person || name.user;
+            }
+            if (!name || typeof name !== 'string' || name.trim() === '') {
+                console.error('Invalid duty information received:', response.data);
+                return handlerInput.responseBuilder
+                    .speak('Sorry, I received invalid duty information.')
+                    .getResponse();
+            }
+            const speakOutput = `today is on duty ${name.trim()}`;
+            return handlerInput.responseBuilder
+                .speak(speakOutput)
+                .getResponse();
+        } catch (error) {
+            console.error('Failed to fetch duty information:', error.message);
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                return handlerInput.responseBuilder
+                    .speak('Sorry, the duty server took too long to respond.')
+                    .getResponse();
+            }
+            return handlerInput.responseBuilder
+                .speak('Sorry, I failed to get the duty information.')
+                .getResponse();
+        }
+    }
+};
+
 const HelpIntentHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
@@ -205,6 +261,7 @@ exports.handler = Alexa.SkillBuilders.custom()
         ReadMyMessagesIntentHandler,
         PairDeviceIntentHandler,
         SendMessageIntentHandler,
+        WhoIsOnDutyIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
         SessionEndedRequestHandler
