@@ -34,6 +34,8 @@ services:
       # EXTERNAL_URL is still useful for the bot logic, though Traefik handles the ingress
       - EXTERNAL_URL=https://${HOSTNAME} 
       - LOG_LEVEL=info
+      - DUTY_URL=${DUTY_URL}
+      - DUTY_SECRET=${DUTY_SECRET}
 
     restart: unless-stopped
 
