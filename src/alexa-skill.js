@@ -1,243 +1,53 @@
 const Alexa = require('ask-sdk-core');
 const axios = require('axios');
 const crypto = require('crypto');
-const db = require('./db');
-const pairing = require('./pairing');
-const bot = require('./telegram-bot');
 
-// Helper to get Alexa User ID
-const getUserId = (handlerInput) => {
-    try {
-        return handlerInput.requestEnvelope.context.System.user.userId;
-    } catch (e) {
-        console.error('Failed to get userId from context:', e);
-        console.log('Full Request Envelope:', JSON.stringify(handlerInput.requestEnvelope, null, 2));
-        return null; // Handle this gracefully in callers
+// Fetch the name of the current person on duty from DUTY_URL
+async function fetchDutyName() {
+    const dutyUrl = process.env.DUTY_URL;
+    if (!dutyUrl) {
+        throw new Error('DUTY_URL is not configured');
     }
-};
 
-const LaunchRequestHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
+    const headers = {};
+    const secret = process.env.DUTY_SECRET;
+    if (secret) {
+        const timestamp = Date.now().toString();
+        const signature = crypto.createHmac('sha256', secret)
+            .update(timestamp)
+            .digest('hex');
+        headers['X-Timestamp'] = timestamp;
+        headers['X-Signature'] = signature;
+    }
+
+    const response = await axios.get(dutyUrl, { timeout: 3000, headers });
+    let name = response.data;
+    if (typeof name === 'object') {
+        name = name.name || name.duty || name.person || name.user;
+    }
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+        throw new Error('Invalid duty information received');
+    }
+    return name.trim();
+}
+
+// Universal handler — responds to every request with the current duty person
+const WhoIsOnDutyHandler = {
+    canHandle() {
+        return true; // catch all
     },
     async handle(handlerInput) {
-        const userId = getUserId(handlerInput);
-        const telegramChatId = await db.getTelegramChatId(userId);
-
-        if (telegramChatId) {
-            const messages = await db.getUnreadMessages(userId);
-            const count = messages.length;
-            const speakOutput = `Welcome back to Telegram Bridge. You have ${count} new message${count !== 1 ? 's' : ''}. Say "read messages" to hear them.`;
-
-            return handlerInput.responseBuilder
-                .speak(speakOutput)
-                .reprompt(speakOutput)
-                .getResponse();
-        } else {
-            // Not paired, generate code
-            const code = await pairing.startPairing(userId);
-            const speakOutput = `Welcome to Telegram Bridge. I am not linked to your Telegram account yet. Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the Telegram Bridge Telegram bot.`;
-
-            return handlerInput.responseBuilder
-                .speak(speakOutput)
-                .getResponse();
-        }
-    }
-};
-
-const ReadMyMessagesIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'ReadMyMessagesIntent';
-    },
-    async handle(handlerInput) {
-        const userId = getUserId(handlerInput);
-        const telegramChatId = await db.getTelegramChatId(userId);
-
-        if (!telegramChatId) {
-            return handlerInput.responseBuilder
-                .speak('You are not paired yet. Please invoke the skill again to get a pairing code.')
-                .getResponse();
-        }
-
-        const messages = await db.getUnreadMessages(userId);
-
-        if (messages.length === 0) {
-            return handlerInput.responseBuilder
-                .speak('You have no new messages.')
-                .getResponse();
-        }
-
-        const message = messages[0]; // Play one by one
-
-        // Mark as read immediately (or could wait for playback finished)
-        // For simplicity in this v1, checking "next message" flow is complex, so we just play one.
-        // A better UX would be to loop, but let's stick to functional MVP.
-        await db.markMessageAsRead(message.id);
-
-        if (message.type === 'TEXT') {
-            const speakOutput = `Message from Telegram: ${message.content}`;
-            return handlerInput.responseBuilder
-                .speak(speakOutput)
-                // .reprompt('Would you like to hear the next message?') // Logic for next message would go here
-                .getResponse();
-        } else if (message.type === 'VOICE') {
-            const externalUrl = process.env.EXTERNAL_URL || 'https://example.com';
-            // Ensure no trailing slash
-            const baseUrl = externalUrl.replace(/\/$/, '');
-            const audioUrl = `${baseUrl}/media/${message.content}`;
-
-            // Using AudioPlayer to play the file
-            return handlerInput.responseBuilder
-                .speak('Playing voice message...')
-                .addAudioPlayerPlayDirective('REPLACE_ALL', audioUrl, message.id.toString(), 0)
-                .getResponse();
-        }
-    }
-};
-
-const PairDeviceIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'PairDeviceIntent'; // Need to ensure user adds this if not exists
-    },
-    async handle(handlerInput) {
-        const userId = getUserId(handlerInput);
-        const code = await pairing.startPairing(userId);
-        const speakOutput = `Your pairing code is <say-as interpret-as="digits">${code}</say-as>. Please send this code to the Telegram Bridge Telegram bot.`;
-        return handlerInput.responseBuilder
-            .speak(speakOutput)
-            .getResponse();
-    }
-};
-
-const SendMessageIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'SendMessageIntent';
-    },
-    async handle(handlerInput) {
-        const userId = getUserId(handlerInput);
-        const telegramChatId = await db.getTelegramChatId(userId);
-
-        if (!telegramChatId) {
-            return handlerInput.responseBuilder
-                .speak('You need to pair your device first.')
-                .getResponse();
-        }
-
-        const message = Alexa.getSlotValue(handlerInput.requestEnvelope, 'message');
-
-        if (!message) {
-            return handlerInput.responseBuilder
-                .speak('I didn\'t catch the message. What should I send?')
-                .reprompt('What should I send to Telegram?')
-                .getResponse();
-        }
-
         try {
-            await bot.telegram.sendMessage(telegramChatId, `🗣️ Alexa says: ${message}`);
+            const name = await fetchDutyName();
             return handlerInput.responseBuilder
-                .speak(`Sent: ${message}`)
-                .getResponse();
-        } catch (error) {
-            console.error('Failed to send telegram message:', error);
-            return handlerInput.responseBuilder
-                .speak('Sorry, I failed to send the message to Telegram.')
-                .getResponse();
-        }
-    }
-};
-
-const WhoIsOnDutyIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'WhoIsOnDutyIntent';
-    },
-    async handle(handlerInput) {
-        const dutyUrl = process.env.DUTY_URL;
-        if (!dutyUrl) {
-            return handlerInput.responseBuilder
-                .speak('Duty URL is not configured.')
-                .getResponse();
-        }
-
-        try {
-            const headers = {};
-            const secret = process.env.DUTY_SECRET;
-            if (secret) {
-                const timestamp = Date.now().toString();
-                const signature = crypto.createHmac('sha256', secret)
-                    .update(timestamp)
-                    .digest('hex');
-                headers['X-Timestamp'] = timestamp;
-                headers['X-Signature'] = signature;
-            }
-
-            const response = await axios.get(dutyUrl, { timeout: 3000, headers });
-            let name = response.data;
-            if (typeof name === 'object') {
-                name = name.name || name.duty || name.person || name.user;
-            }
-            if (!name || typeof name !== 'string' || name.trim() === '') {
-                console.error('Invalid duty information received:', response.data);
-                return handlerInput.responseBuilder
-                    .speak('Sorry, I received invalid duty information.')
-                    .getResponse();
-            }
-            const speakOutput = `today is on duty ${name.trim()}`;
-            return handlerInput.responseBuilder
-                .speak(speakOutput)
+                .speak(`Today on duty: ${name}.`)
                 .getResponse();
         } catch (error) {
             console.error('Failed to fetch duty information:', error.message);
-            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-                return handlerInput.responseBuilder
-                    .speak('Sorry, the duty server took too long to respond.')
-                    .getResponse();
-            }
             return handlerInput.responseBuilder
-                .speak('Sorry, I failed to get the duty information.')
+                .speak('Sorry, I could not get the duty information right now.')
                 .getResponse();
         }
-    }
-};
-
-const HelpIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.HelpIntent';
-    },
-    handle(handlerInput) {
-        const speakOutput = 'You can ask me to read your messages or pair your device. How can I help?';
-        return handlerInput.responseBuilder
-            .speak(speakOutput)
-            .reprompt(speakOutput)
-            .getResponse();
-    }
-};
-
-const CancelAndStopIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
-            && (Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.CancelIntent'
-                || Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.StopIntent');
-    },
-    handle(handlerInput) {
-        const speakOutput = 'Goodbye!';
-        return handlerInput.responseBuilder
-            .speak(speakOutput)
-            .getResponse();
-    }
-};
-
-const SessionEndedRequestHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
-    },
-    handle(handlerInput) {
-        console.log(`Session ended with reason: ${handlerInput.requestEnvelope.request.reason}`);
-        return handlerInput.responseBuilder.getResponse();
     }
 };
 
@@ -247,24 +57,13 @@ const ErrorHandler = {
     },
     handle(handlerInput, error) {
         console.log(`Error handled: ${error.stack}`);
-        const speakOutput = 'Sorry, I had trouble doing what you asked. Please try again.';
         return handlerInput.responseBuilder
-            .speak(speakOutput)
-            .reprompt(speakOutput)
+            .speak('Sorry, something went wrong. Please try again.')
             .getResponse();
     }
 };
 
 exports.handler = Alexa.SkillBuilders.custom()
-    .addRequestHandlers(
-        LaunchRequestHandler,
-        ReadMyMessagesIntentHandler,
-        PairDeviceIntentHandler,
-        SendMessageIntentHandler,
-        WhoIsOnDutyIntentHandler,
-        HelpIntentHandler,
-        CancelAndStopIntentHandler,
-        SessionEndedRequestHandler
-    )
+    .addRequestHandlers(WhoIsOnDutyHandler)
     .addErrorHandlers(ErrorHandler)
     .create();
