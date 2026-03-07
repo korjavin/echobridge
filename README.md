@@ -44,3 +44,7 @@ It replaces the complex AWS Lambda/Cognito setup with a lightweight Node.js serv
     *   Send `/pair <code>` to your Telegram Bot.
 
 See [walkthrough.md](walkthrough.md) for detailed deployment instructions.
+
+## **Duty API**
+
+If you'd like to use the "Who is on duty" Alexa command, you must expose a compatible endpoint. See [DUTY_API.md](DUTY_API.md) for detailed instructions on the API contract, formats, and configuring HMAC authorization.

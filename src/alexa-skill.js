@@ -1,5 +1,6 @@
 const Alexa = require('ask-sdk-core');
 const axios = require('axios');
+const crypto = require('crypto');
 const db = require('./db');
 const pairing = require('./pairing');
 const bot = require('./telegram-bot');
@@ -162,7 +163,18 @@ const WhoIsOnDutyIntentHandler = {
         }
 
         try {
-            const response = await axios.get(dutyUrl, { timeout: 3000 });
+            const headers = {};
+            const secret = process.env.DUTY_SECRET;
+            if (secret) {
+                const timestamp = Date.now().toString();
+                const signature = crypto.createHmac('sha256', secret)
+                    .update(timestamp)
+                    .digest('hex');
+                headers['X-Timestamp'] = timestamp;
+                headers['X-Signature'] = signature;
+            }
+
+            const response = await axios.get(dutyUrl, { timeout: 3000, headers });
             let name = response.data;
             if (typeof name === 'object') {
                 name = name.name || name.duty || name.person || name.user;
