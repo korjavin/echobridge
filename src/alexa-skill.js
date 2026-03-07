@@ -1,4 +1,5 @@
 const Alexa = require('ask-sdk-core');
+const axios = require('axios');
 const db = require('./db');
 const pairing = require('./pairing');
 const bot = require('./telegram-bot');
@@ -147,6 +148,35 @@ const SendMessageIntentHandler = {
     }
 };
 
+const WhoIsOnDutyIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'WhoIsOnDutyIntent';
+    },
+    async handle(handlerInput) {
+        const dutyUrl = process.env.DUTY_URL;
+        if (!dutyUrl) {
+            return handlerInput.responseBuilder
+                .speak('Duty URL is not configured.')
+                .getResponse();
+        }
+
+        try {
+            const response = await axios.get(dutyUrl);
+            const name = response.data; // Assuming it returns just the name as text.
+            const speakOutput = `today is on duty ${name}`;
+            return handlerInput.responseBuilder
+                .speak(speakOutput)
+                .getResponse();
+        } catch (error) {
+            console.error('Failed to fetch duty information:', error);
+            return handlerInput.responseBuilder
+                .speak('Sorry, I failed to get the duty information.')
+                .getResponse();
+        }
+    }
+};
+
 const HelpIntentHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
@@ -205,6 +235,7 @@ exports.handler = Alexa.SkillBuilders.custom()
         ReadMyMessagesIntentHandler,
         PairDeviceIntentHandler,
         SendMessageIntentHandler,
+        WhoIsOnDutyIntentHandler,
         HelpIntentHandler,
         CancelAndStopIntentHandler,
         SessionEndedRequestHandler
