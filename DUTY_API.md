@@ -64,7 +64,7 @@ Your endpoint should return a successful HTTP status code (e.g., `200 OK`) and s
 
 The response body can be provided in one of two formats:
 
-### 1. Plain Text
+### 1. Plain Text (Backward Compatible)
 
 A simple string containing the name of the person on duty.
 
@@ -75,21 +75,35 @@ Alex
 
 ### 2. JSON Object
 
-A JSON object containing the name. EchoBridge will attempt to extract the name from one of the following fields, checked in order:
+A JSON object containing the name, and optionally an array of chores. EchoBridge will attempt to extract the name from one of the following fields, checked in order:
 1.  `name`
 2.  `duty`
 3.  `person`
 4.  `user`
 
-**Response Body Example:**
+If a `chores` array is provided, EchoBridge will also read aloud each chore's details. Each chore object can optionally include:
+*   `description`: What needs to be done.
+*   `assignee`: Who is responsible for the chore.
+*   `deadline_at`: When the chore is due.
+
+**Response Body Example with Chores:**
 ```json
 {
   "name": "Alex",
-  "shift": "morning"
+  "chores": [
+    {
+      "description": "Take out the trash",
+      "assignee": "Alex",
+      "deadline_at": "5:00 PM"
+    },
+    {
+      "description": "Feed the dog"
+    }
+  ]
 }
 ```
 
-Or:
+**Backward Compatible JSON Example:**
 ```json
 {
   "duty": "Alex"
