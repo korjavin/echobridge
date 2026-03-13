@@ -2,8 +2,8 @@ const Alexa = require('ask-sdk-core');
 const axios = require('axios');
 const crypto = require('crypto');
 
-// Fetch the name of the current person on duty from DUTY_URL
-async function fetchDutyName() {
+// Fetch the name and chores of the current person on duty from DUTY_URL
+async function fetchDutyInfo() {
     const dutyUrl = process.env.DUTY_URL;
     if (!dutyUrl) {
         throw new Error('DUTY_URL is not configured');
@@ -21,14 +21,24 @@ async function fetchDutyName() {
     }
 
     const response = await axios.get(dutyUrl, { timeout: 3000, headers });
-    let name = response.data;
-    if (typeof name === 'object') {
-        name = name.name || name.duty || name.person || name.user;
+    let data = response.data;
+    let name;
+    let chores = [];
+
+    if (typeof data === 'object' && data !== null) {
+        name = data.name || data.duty || data.person || data.user;
+        if (Array.isArray(data.chores)) {
+            chores = data.chores;
+        }
+    } else {
+        name = data;
     }
+
     if (!name || typeof name !== 'string' || name.trim() === '') {
         throw new Error('Invalid duty information received');
     }
-    return name.trim();
+
+    return { name: name.trim(), chores };
 }
 
 // Universal handler — responds to every request with the current duty person
@@ -38,9 +48,24 @@ const WhoIsOnDutyHandler = {
     },
     async handle(handlerInput) {
         try {
-            const name = await fetchDutyName();
+            const { name, chores } = await fetchDutyInfo();
+            let speechText = `Today on duty: ${name}.`;
+
+            if (chores && chores.length > 0) {
+                chores.forEach(chore => {
+                    let choreParts = [];
+                    if (chore.description) choreParts.push(chore.description);
+                    if (chore.assignee) choreParts.push(`assigned to ${chore.assignee}`);
+                    if (chore.deadline_at) choreParts.push(`due ${chore.deadline_at}`);
+
+                    if (choreParts.length > 0) {
+                        speechText += ` ${choreParts.join(', ')}.`
+                    }
+                });
+            }
+
             return handlerInput.responseBuilder
-                .speak(`Today on duty: ${name}.`)
+                .speak(speechText)
                 .getResponse();
         } catch (error) {
             console.error('Failed to fetch duty information:', error.message);
