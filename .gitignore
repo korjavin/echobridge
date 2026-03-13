@@ -1,2 +1,5 @@
 node_modules
 data/
+
+# ralphex progress logs
+.ralphex/progress/
