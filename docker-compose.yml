@@ -3,7 +3,7 @@ version: "3.8"
 services:
   echobridge:
     # Image will be automatically updated by GitHub Actions
-    image: ghcr.io/korjavin/echobridge:latest
+    image: ghcr.io/korjavin/echobridge:a8c7473534ed4199bde41d5deeac0fe7e4575784
     container_name: echobridge
     
     # Use dynamic network name from env var NETWORK, default to traefik_network
